@@ -207,3 +207,20 @@ class ChatResponse(BaseModel):
     tool_calls: list[ToolCall]
     orders_added: int
     orders: list[Order]
+
+
+class AgentSpec(BaseModel):
+    system_prompt: str
+    tools: list[dict[str, Any]]
+
+
+class ToolRunRequest(BaseModel):
+    args: dict[str, Any] = Field(default_factory=dict)
+
+
+class ToolRunResponse(BaseModel):
+    tool: str
+    args: dict[str, Any]
+    result: str
+    orders_added: int
+    orders: list[Order]

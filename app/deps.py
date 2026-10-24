@@ -5,7 +5,7 @@ import threading
 from functools import lru_cache
 from typing import Callable
 
-from .agent import AdvisorAgent
+from .agent import AdvisorAgent, build_tools
 from .engine import CapitalMarketAssumptions
 from .llm import LLMSettings, build_chat_model
 from .rebalance import RebalanceSettings
@@ -82,3 +82,11 @@ def _build_agent(provider: str, model: str | None) -> AdvisorAgent:
 @lru_cache
 def get_agent_cache() -> AgentCache:
     return AgentCache(_build_agent)
+
+
+@lru_cache
+def get_agent_tools() -> dict:
+    """Advisor AI tools by name, for agents that run in the browser (WebLLM)."""
+    tools = build_tools(get_sources(), get_cma(), get_rebalance_settings(),
+                        get_llm_settings().max_trials_per_tool_call)
+    return {t.name: t for t in tools}

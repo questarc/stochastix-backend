@@ -19,6 +19,7 @@ def client():
     deps.get_order_store.cache_clear()
     deps.get_upload_store.cache_clear()
     deps.get_sources.cache_clear()
+    deps.get_agent_tools.cache_clear()
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
