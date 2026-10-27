@@ -37,6 +37,8 @@ Orders tab.
 10. When asked for an audio or voice summary for the client, call create_audio_summary with the summary \
 you already gave, word for word, including its numbers. Do not add new figures.
 11. When asked for a video for the client or investor, call create_investor_video once for that account.
+12. For economic news, upcoming earnings or corporate actions (dividends, splits), use get_market_news, \
+get_upcoming_earnings or get_corporate_actions. Report only items the tools return, with their source and date.
 """
 
 
@@ -69,11 +71,12 @@ def _text(content) -> str:
 class AdvisorAgent:
     def __init__(self, llm, sources: dict, cma: CapitalMarketAssumptions,
                  rebalance_settings: RebalanceSettings | None = None,
-                 max_trials: int = 25_000, recursion_limit: int = 20, voice_agent=None, video_jobs=None):
+                 max_trials: int = 25_000, recursion_limit: int = 20, voice_agent=None, video_jobs=None,
+                 market_agents=None):
         self.recursion_limit = recursion_limit
         self.checkpointer = InMemorySaver()
         tools = build_tools(sources, cma, rebalance_settings or RebalanceSettings(), max_trials, voice_agent,
-                            video_jobs)
+                            video_jobs, market_agents)
         self.graph = create_agent(llm, tools, system_prompt=SYSTEM_PROMPT,
                                   checkpointer=self.checkpointer, name="advisor_agent")
 

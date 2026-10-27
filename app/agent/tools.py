@@ -39,7 +39,7 @@ def _fmt_summary(s: dict) -> dict:
 
 
 def build_tools(sources: dict, cma: CapitalMarketAssumptions, rebalance_settings: RebalanceSettings,
-                max_trials: int = 25_000, voice_agent=None, video_jobs=None) -> list:
+                max_trials: int = 25_000, voice_agent=None, video_jobs=None, market_agents=None) -> list:
     def _model_id(account_id: str, model_id: str | None) -> str | None:
         if not model_id:
             return None
@@ -237,4 +237,49 @@ def build_tools(sources: dict, cma: CapitalMarketAssumptions, rebalance_settings
                            "note": "Rendering takes about 30-60 seconds; a player appears in the chat."}), job.to_dict()
 
         tools.append(create_investor_video)
+
+    if market_agents:
+        def _for_tickers(items: list[dict], account_id: str | None, tickers: list[str] | None) -> list[dict]:
+            wanted = {t.upper() for t in tickers or []}
+            if account_id:
+                wanted |= {p.ticker.upper() for p in _portfolio(account_id).positions}
+            return [i for i in items if i["symbol"].upper() in wanted] if wanted else items
+
+        @tool
+        @safe
+        def get_market_news(topic: str | None = None) -> str:
+            """Latest economic and market news (Fed, economic data, SEC, ECB, markets) with source and link.
+            Optional topic: Monetary policy, Inflation, Jobs, Growth, Trade, Regulation, Markets."""
+            r = market_agents["news"].news(topic=topic)
+            return _dumps({"updated_at": r["updated_at"], "items": [
+                {k: i[k] for k in ("title", "source", "published_at", "url", "topics")} for i in r["items"][:12]],
+                "unavailable_sources": [e["source"] for e in r["errors"]]})
+
+        @tool
+        @safe
+        def get_upcoming_earnings(account_id: str | None = None, tickers: list[str] | None = None,
+                                  days: int = 14) -> str:
+            """Upcoming earnings reports (date, before/after market, EPS forecast). Pass account_id for that
+            client's holdings or tickers for specific companies; otherwise large companies and the watchlist."""
+            r = market_agents["earnings"].upcoming(days=min(max(days, 1), 30))
+            items = _for_tickers(r["items"], account_id, tickers)
+            return _dumps({"updated_at": r["updated_at"], "source": "Nasdaq", "items": [
+                {"date": i["date"], "symbol": i["symbol"], "name": i["name"], "time": i["time"],
+                 "eps_forecast": None if i["eps_forecast"] is None else f"${i['eps_forecast']:.2f}",
+                 "held_by_accounts": i["held_by"]} for i in items[:20]] or "none"})
+
+        @tool
+        @safe
+        def get_corporate_actions(account_id: str | None = None, tickers: list[str] | None = None,
+                                  days: int = 30) -> str:
+            """Upcoming dividends (ex-date, pay date, amount) and stock splits. Pass account_id for that client's
+            holdings or tickers for specific securities."""
+            r = market_agents["actions"].upcoming(days=min(max(days, 1), 60))
+            items = _for_tickers(r["items"], account_id, tickers)
+            return _dumps({"updated_at": r["updated_at"], "source": "Nasdaq", "items": [
+                {"type": i["type"], "symbol": i["symbol"], "name": i["name"], "ex_date": i["ex_date"],
+                 "pay_date": i["pay_date"], "amount": None if i["amount"] is None else f"${i['amount']:.4f}",
+                 "ratio": i["ratio"], "held_by_accounts": i["held_by"]} for i in items[:20]] or "none"})
+
+        tools += [get_market_news, get_upcoming_earnings, get_corporate_actions]
     return tools

@@ -1,4 +1,5 @@
-from . import agent_tools, chat, llm, methodology, orders, portfolio, rebalance, simulations, sources, video, voice
+from . import (agent_tools, chat, llm, market, methodology, orders, portfolio, rebalance, simulations, sources,
+               video, voice)
 
 ALL_ROUTERS = [
     sources.router,
@@ -12,4 +13,5 @@ ALL_ROUTERS = [
     agent_tools.router,
     voice.router,
     video.router,
+    market.router,
 ]

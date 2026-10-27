@@ -12,6 +12,7 @@ from .rebalance import RebalanceSettings
 from .sources import SourceAgent, load_sources
 from .sources.base import BASE_DIR
 from .stores import InMemoryOrderStore, InMemoryUploadStore, OrderStore, UploadStore
+from .market import CorporateActionsAgent, EarningsAgent, MarketAnalyzerAgent, MarketHttp, MarketSettings, holdings_index
 from .video import VideoGenAgent, VideoJobManager
 from .voice import AudioStore, PiperEngine, VoiceGenAgent
 
@@ -68,6 +69,35 @@ def get_voice_agent() -> VoiceGenAgent:
 
 
 @lru_cache
+def get_market_settings() -> MarketSettings:
+    return MarketSettings.load(CONFIG_DIR / "market.json")
+
+
+def _market_http() -> MarketHttp:
+    s = get_market_settings()
+    return MarketHttp(s.user_agent, s.request_timeout_seconds)
+
+
+@lru_cache
+def get_market_agent() -> MarketAnalyzerAgent:
+    return MarketAnalyzerAgent(get_market_settings(), _market_http())
+
+
+@lru_cache
+def get_earnings_agent() -> EarningsAgent:
+    return EarningsAgent(get_market_settings(), _market_http(), lambda: holdings_index(get_sources()))
+
+
+@lru_cache
+def get_corporate_actions_agent() -> CorporateActionsAgent:
+    return CorporateActionsAgent(get_market_settings(), _market_http(), lambda: holdings_index(get_sources()))
+
+
+def get_market_agents() -> dict:
+    return {"news": get_market_agent(), "earnings": get_earnings_agent(), "actions": get_corporate_actions_agent()}
+
+
+@lru_cache
 def get_video_jobs() -> VideoJobManager:
     agent = VideoGenAgent(get_speech_engine(), get_sources(), get_cma(), get_rebalance_settings())
     return VideoJobManager(agent)
@@ -100,7 +130,7 @@ def _build_agent(provider: str, model: str | None) -> AdvisorAgent:
     llm = build_chat_model(settings, provider, model)
     return AdvisorAgent(llm, get_sources(), get_cma(), get_rebalance_settings(),
                         max_trials=settings.max_trials_per_tool_call, voice_agent=get_voice_agent(),
-                        video_jobs=get_video_jobs())
+                        video_jobs=get_video_jobs(), market_agents=get_market_agents())
 
 
 @lru_cache
@@ -113,5 +143,5 @@ def get_agent_tools() -> dict:
     """Advisor AI tools by name, for agents that run in the browser (WebLLM)."""
     tools = build_tools(get_sources(), get_cma(), get_rebalance_settings(),
                         get_llm_settings().max_trials_per_tool_call, voice_agent=get_voice_agent(),
-                        video_jobs=get_video_jobs())
+                        video_jobs=get_video_jobs(), market_agents=get_market_agents())
     return {t.name: t for t in tools}

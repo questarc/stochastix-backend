@@ -23,6 +23,9 @@ def client():
     deps.get_voice_agent.cache_clear()
     deps.get_audio_store.cache_clear()
     deps.get_video_jobs.cache_clear()
+    deps.get_market_agent.cache_clear()
+    deps.get_earnings_agent.cache_clear()
+    deps.get_corporate_actions_agent.cache_clear()
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
