@@ -35,6 +35,7 @@ def _ask(req: ChatRequest, cache: AgentCache, store: OrderStore) -> dict:
         "tool_calls": reply.tool_calls,
         "orders_added": len(reply.orders),
         "orders": reply.orders,
+        "audio": reply.audio,
     }
 
 

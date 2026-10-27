@@ -39,7 +39,7 @@ def _fmt_summary(s: dict) -> dict:
 
 
 def build_tools(sources: dict, cma: CapitalMarketAssumptions, rebalance_settings: RebalanceSettings,
-                max_trials: int = 25_000) -> list:
+                max_trials: int = 25_000, voice_agent=None) -> list:
     def _model_id(account_id: str, model_id: str | None) -> str | None:
         if not model_id:
             return None
@@ -202,6 +202,22 @@ def build_tools(sources: dict, cma: CapitalMarketAssumptions, rebalance_settings
                        "distributions": d["distributions"], "asset_classes": d["asset_classes"],
                        "correlation": d["correlation"]})
 
-    return [list_accounts, list_model_portfolios, get_account_portfolio, run_simulation,
-            compare_current_vs_model, propose_rebalance_tool, simulate_and_rebalance,
-            explain_methodology, get_capital_market_assumptions]
+    tools = [list_accounts, list_model_portfolios, get_account_portfolio, run_simulation,
+             compare_current_vs_model, propose_rebalance_tool, simulate_and_rebalance,
+             explain_methodology, get_capital_market_assumptions]
+
+    if voice_agent is not None:
+        @tool(response_format="content_and_artifact")
+        def create_audio_summary(summary_text: str, account_id: str | None = None):
+            """Create an audio file (WAV) the advisor can share with the investor. Pass the summary you already
+            wrote, word for word, with its numbers. Use only when the user asks for audio or a voice summary."""
+            try:
+                clip = voice_agent.create(summary_text, account_id)
+            except Exception as exc:
+                return _dumps({"error": str(exc).strip("'\"")}), None
+            info = clip.to_dict()
+            return _dumps({"audio_created": True, "file_name": info["file_name"],
+                           "duration_seconds": info["duration_seconds"]}), info
+
+        tools.append(create_audio_summary)
+    return tools

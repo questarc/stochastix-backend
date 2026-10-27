@@ -202,11 +202,29 @@ class ToolCall(BaseModel):
     result: str
 
 
+class AudioInfo(BaseModel):
+    audio_id: str
+    account_id: str | None = None
+    client_name: str | None = None
+    script: str
+    voice: str
+    duration_seconds: float
+    created_at: str
+    file_name: str
+    url: str
+
+
+class VoiceRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=20_000)
+    account_id: str | None = None
+
+
 class ChatResponse(BaseModel):
     text: str
     tool_calls: list[ToolCall]
     orders_added: int
     orders: list[Order]
+    audio: list[AudioInfo] = Field(default_factory=list)
 
 
 class AgentSpec(BaseModel):
@@ -224,3 +242,4 @@ class ToolRunResponse(BaseModel):
     result: str
     orders_added: int
     orders: list[Order]
+    audio: list[AudioInfo] = Field(default_factory=list)

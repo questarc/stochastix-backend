@@ -28,10 +28,10 @@ class FakeToolModel(BaseChatModel):
         return ChatResult(generations=[ChatGeneration(message=msg)])
 
 
-def _cache(script):
+def _cache(script, voice_agent=None):
     def factory(provider, model):
         return AdvisorAgent(FakeToolModel(script=script), deps.get_sources(), deps.get_cma(),
-                            deps.get_rebalance_settings(), max_trials=1000)
+                            deps.get_rebalance_settings(), max_trials=1000, voice_agent=voice_agent)
     return AgentCache(factory)
 
 
@@ -54,6 +54,23 @@ def test_chat_runs_tools_and_adds_orders(client):
     assert body["tool_calls"][0]["tool"] == "simulate_and_rebalance"
     assert body["orders_added"] > 0 and body["orders_added"] == len(body["orders"])
     assert len(client.get("/api/orders").json()) == body["orders_added"]
+
+
+def test_chat_creates_audio_summary(client):
+    from app.voice import AudioStore, VoiceGenAgent
+    from tests.test_voice import FakeEngine
+
+    voice = VoiceGenAgent(FakeEngine(), AudioStore(), deps.get_sources())
+    script = [
+        _call("create_audio_summary", {"summary_text": "Success is 76.8%.", "account_id": "A1001"}),
+        AIMessage(content="Your audio summary is ready."),
+    ]
+    cache = _cache(script, voice)
+    client.app.dependency_overrides[deps.get_agent_cache] = lambda: cache
+    body = client.post("/api/chat", json={"message": "Make an audio summary", "thread_id": "t5",
+                                          "provider": "ollama"}).json()
+    assert len(body["audio"]) == 1 and "76.8 percent" in body["audio"][0]["script"]
+    assert body["orders_added"] == 0
 
 
 def test_chat_tool_error_is_returned_as_json(client):
@@ -94,7 +111,7 @@ def test_chat_provider_failure_returns_502(client):
 def test_agent_tools_spec_lists_all_tools(client):
     body = client.get("/api/agent/tools").json()
     names = [t["function"]["name"] for t in body["tools"]]
-    assert len(names) == 9 and "simulate_and_rebalance" in names and "propose_rebalance" in names
+    assert len(names) == 10 and "simulate_and_rebalance" in names and "create_audio_summary" in names
     run_sim = next(t for t in body["tools"] if t["function"]["name"] == "run_simulation")
     assert "account_id" in run_sim["function"]["parameters"]["properties"]
     assert "Use the tools for every number" in body["system_prompt"]

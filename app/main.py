@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from .llm import LLMConfigError
 from .routers import ALL_ROUTERS
 from .sources.base import BASE_DIR
+from .voice import VoiceConfigError
 
 load_dotenv(BASE_DIR / ".env")
 load_dotenv(BASE_DIR.parent / ".env")
@@ -51,6 +52,10 @@ def create_app() -> FastAPI:
     @app.exception_handler(LLMConfigError)
     async def llm_config_error(_: Request, exc: LLMConfigError):
         return JSONResponse(status_code=400, content={"detail": _message(exc)})
+
+    @app.exception_handler(VoiceConfigError)
+    async def voice_config_error(_: Request, exc: VoiceConfigError):
+        return JSONResponse(status_code=503, content={"detail": _message(exc)})
 
     @app.exception_handler(NotImplementedError)
     async def not_implemented(_: Request, exc: NotImplementedError):

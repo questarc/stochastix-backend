@@ -20,6 +20,8 @@ def client():
     deps.get_upload_store.cache_clear()
     deps.get_sources.cache_clear()
     deps.get_agent_tools.cache_clear()
+    deps.get_voice_agent.cache_clear()
+    deps.get_audio_store.cache_clear()
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
