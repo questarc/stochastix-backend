@@ -53,6 +53,13 @@ def _speak_numbers(text: str) -> str:
     return text
 
 
+def speakable(text: str) -> str:
+    """Reword symbols and figures for speech (e.g. "$1,200" -> "1,200 dollars"); values are unchanged."""
+    for symbol, word in _SYMBOLS.items():
+        text = text.replace(symbol, word)
+    return re.sub(r"\s+", " ", _speak_numbers(text)).strip()
+
+
 def build_script(summary: str, client_name: str | None = None, advisor: str | None = None) -> str:
     """Opening + cleaned summary + fixed disclaimer. The disclaimer is always present."""
     body = _strip_markdown(summary or "")

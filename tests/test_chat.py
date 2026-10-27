@@ -28,10 +28,11 @@ class FakeToolModel(BaseChatModel):
         return ChatResult(generations=[ChatGeneration(message=msg)])
 
 
-def _cache(script, voice_agent=None):
+def _cache(script, voice_agent=None, video_jobs=None):
     def factory(provider, model):
         return AdvisorAgent(FakeToolModel(script=script), deps.get_sources(), deps.get_cma(),
-                            deps.get_rebalance_settings(), max_trials=1000, voice_agent=voice_agent)
+                            deps.get_rebalance_settings(), max_trials=1000, voice_agent=voice_agent,
+                            video_jobs=video_jobs)
     return AgentCache(factory)
 
 
@@ -111,7 +112,7 @@ def test_chat_provider_failure_returns_502(client):
 def test_agent_tools_spec_lists_all_tools(client):
     body = client.get("/api/agent/tools").json()
     names = [t["function"]["name"] for t in body["tools"]]
-    assert len(names) == 10 and "simulate_and_rebalance" in names and "create_audio_summary" in names
+    assert len(names) == 11 and "create_audio_summary" in names and "create_investor_video" in names
     run_sim = next(t for t in body["tools"] if t["function"]["name"] == "run_simulation")
     assert "account_id" in run_sim["function"]["parameters"]["properties"]
     assert "Use the tools for every number" in body["system_prompt"]

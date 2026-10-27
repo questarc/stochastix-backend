@@ -12,6 +12,7 @@ from .rebalance import RebalanceSettings
 from .sources import SourceAgent, load_sources
 from .sources.base import BASE_DIR
 from .stores import InMemoryOrderStore, InMemoryUploadStore, OrderStore, UploadStore
+from .video import VideoGenAgent, VideoJobManager
 from .voice import AudioStore, PiperEngine, VoiceGenAgent
 
 CONFIG_DIR = BASE_DIR / "config"
@@ -66,6 +67,12 @@ def get_voice_agent() -> VoiceGenAgent:
     return VoiceGenAgent(get_speech_engine(), get_audio_store(), get_sources())
 
 
+@lru_cache
+def get_video_jobs() -> VideoJobManager:
+    agent = VideoGenAgent(get_speech_engine(), get_sources(), get_cma(), get_rebalance_settings())
+    return VideoJobManager(agent)
+
+
 class AgentCache:
     """One Advisor AI agent per (provider, model)."""
 
@@ -92,7 +99,8 @@ def _build_agent(provider: str, model: str | None) -> AdvisorAgent:
     settings = get_llm_settings()
     llm = build_chat_model(settings, provider, model)
     return AdvisorAgent(llm, get_sources(), get_cma(), get_rebalance_settings(),
-                        max_trials=settings.max_trials_per_tool_call, voice_agent=get_voice_agent())
+                        max_trials=settings.max_trials_per_tool_call, voice_agent=get_voice_agent(),
+                        video_jobs=get_video_jobs())
 
 
 @lru_cache
@@ -104,5 +112,6 @@ def get_agent_cache() -> AgentCache:
 def get_agent_tools() -> dict:
     """Advisor AI tools by name, for agents that run in the browser (WebLLM)."""
     tools = build_tools(get_sources(), get_cma(), get_rebalance_settings(),
-                        get_llm_settings().max_trials_per_tool_call, voice_agent=get_voice_agent())
+                        get_llm_settings().max_trials_per_tool_call, voice_agent=get_voice_agent(),
+                        video_jobs=get_video_jobs())
     return {t.name: t for t in tools}

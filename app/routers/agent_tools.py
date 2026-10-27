@@ -21,12 +21,14 @@ def agent_spec(tools: dict = Depends(get_agent_tools)):
 
 
 def _run(tool, name: str, args: dict, store: OrderStore) -> dict:
-    orders, audio = [], []
+    orders, audio, video_jobs = [], [], []
     try:
         message = tool.invoke({"name": name, "args": args, "id": "browser", "type": "tool_call"})
         result = str(message.content)
         if name == "create_audio_summary":
             audio = [message.artifact] if message.artifact else []
+        elif name == "create_investor_video":
+            video_jobs = [message.artifact] if message.artifact else []
         else:
             orders = list(message.artifact or [])
     except Exception as exc:  # invalid arguments are reported to the model, like tool errors
@@ -34,7 +36,7 @@ def _run(tool, name: str, args: dict, store: OrderStore) -> dict:
     if orders:
         store.merge(orders)
     return {"tool": name, "args": args, "result": result, "orders_added": len(orders), "orders": orders,
-            "audio": audio}
+            "audio": audio, "video_jobs": video_jobs}
 
 
 @router.post("/agent/tools/{name}", response_model=ToolRunResponse)

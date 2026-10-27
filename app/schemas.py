@@ -219,12 +219,39 @@ class VoiceRequest(BaseModel):
     account_id: str | None = None
 
 
+class VideoRequest(SimulationRequest):
+    include_rebalance: bool = True
+    trials: int = Field(10_000, gt=0, le=25_000)
+
+
+class VideoInfo(BaseModel):
+    video_id: str
+    account_id: str
+    client_name: str
+    duration_seconds: float
+    scenes: list[str]
+    created_at: str
+    file_name: str
+    size_bytes: int
+    url: str
+
+
+class VideoJobInfo(BaseModel):
+    job_id: str
+    account_id: str
+    status: Literal["queued", "rendering", "done", "error"]
+    progress: float
+    message: str
+    video: VideoInfo | None = None
+
+
 class ChatResponse(BaseModel):
     text: str
     tool_calls: list[ToolCall]
     orders_added: int
     orders: list[Order]
     audio: list[AudioInfo] = Field(default_factory=list)
+    video_jobs: list[VideoJobInfo] = Field(default_factory=list)
 
 
 class AgentSpec(BaseModel):
@@ -243,3 +270,4 @@ class ToolRunResponse(BaseModel):
     orders_added: int
     orders: list[Order]
     audio: list[AudioInfo] = Field(default_factory=list)
+    video_jobs: list[VideoJobInfo] = Field(default_factory=list)

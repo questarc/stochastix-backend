@@ -39,7 +39,7 @@ def _fmt_summary(s: dict) -> dict:
 
 
 def build_tools(sources: dict, cma: CapitalMarketAssumptions, rebalance_settings: RebalanceSettings,
-                max_trials: int = 25_000, voice_agent=None) -> list:
+                max_trials: int = 25_000, voice_agent=None, video_jobs=None) -> list:
     def _model_id(account_id: str, model_id: str | None) -> str | None:
         if not model_id:
             return None
@@ -220,4 +220,21 @@ def build_tools(sources: dict, cma: CapitalMarketAssumptions, rebalance_settings
                            "duration_seconds": info["duration_seconds"]}), info
 
         tools.append(create_audio_summary)
+
+    if video_jobs is not None:
+        @tool(response_format="content_and_artifact")
+        def create_investor_video(account_id: str, model_id: str | None = None, include_rebalance: bool = True):
+            """Start a narrated video for the investor (about 90 seconds) explaining the plan, charts and proposed
+            rebalance. All figures come from the simulation engine. Use when the user asks for a video."""
+            try:
+                mid = _model_id(account_id, model_id)
+                find_source_for_account(sources, account_id)
+                job = video_jobs.submit({"account_id": account_id, "model_id": mid,
+                                         "include_rebalance": include_rebalance})
+            except Exception as exc:
+                return _dumps({"error": str(exc).strip("'\"")}), None
+            return _dumps({"video_started": True, "account_id": account_id,
+                           "note": "Rendering takes about 30-60 seconds; a player appears in the chat."}), job.to_dict()
+
+        tools.append(create_investor_video)
     return tools
