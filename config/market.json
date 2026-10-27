@@ -16,5 +16,9 @@
   "dividends_url": "https://api.nasdaq.com/api/calendar/dividends?date={date}",
   "splits_url": "https://api.nasdaq.com/api/calendar/splits",
   "earnings_min_market_cap": 50000000000,
+  "heatmap_url": "https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=25&offset=0&download=true",
+  "heatmap_size": 100,
+  "heatmap_ttl_minutes": 15,
+  "heatmap_exclude": ["GOOG", "BRK/A", "FOX", "NWS"],
   "watchlist": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "JPM", "V", "UNH", "XOM", "JNJ", "WMT", "PG"]
 }

@@ -13,13 +13,14 @@ Results are projections, not guarantees, and not investment advice.
 | ⚖️ Rebalance | Drift vs the model portfolio, proposed sells/buys funded by sells, success before/after | `POST /api/rebalance/proposal`, `GET /api/rebalance/settings` |
 | 🧾 Orders | Pending order blotter, CSV/JSON export | `POST /api/orders/generate`, `GET/DELETE /api/orders`, `GET /api/orders/export` |
 | 📂 Source agents | Sales CSV, A360 Positions (with upload), A360/Orion API placeholders | `/api/sources/...`, `GET /api/accounts/{id}/portfolio` |
-| 🤖 Advisor AI | LangChain + LangGraph agent with 14 tools; Ollama, OpenAI, Anthropic | `POST /api/chat`, `DELETE /api/chat/{thread_id}`, `GET /api/llm/providers` |
+| 🤖 Advisor AI | LangChain + LangGraph agent with 15 tools; Ollama, OpenAI, Anthropic | `POST /api/chat`, `DELETE /api/chat/{thread_id}`, `GET /api/llm/providers` |
 | 🌐 WebLLM support | Exposes the same tools to an agent running in the browser | `GET /api/agent/tools`, `POST /api/agent/tools/{name}` |
 | 🔊 VoiceGenAgent | Audio summary (WAV) of an AI answer for the investor, local Piper TTS | `POST /api/voice`, `GET /api/voice/{id}` |
 | 🎬 VideoGenAgent | ~90 s narrated investor video (MP4) with animated advisor, charts and subtitles | `POST /api/video`, `GET /api/video/jobs/{id}`, `GET /api/video/{id}` |
 | 📰 MarketAnalyzerAgent | Latest economic and market news | `GET /api/market/news` |
 | 📈 EarningsAgent | Upcoming earnings reports | `GET /api/market/earnings` |
 | 🏦 CorporateActionsAgent | Upcoming dividends and stock splits | `GET /api/market/corporate-actions` |
+| 🗺️ MarketHeatmapAgent | Daily % change of the largest US companies by sector (treemap data) | `GET /api/market/heatmap?size=100` |
 | 📖 Methodology | "How it works" text | `GET /api/methodology` |
 | ⚙️ Config | Capital market assumptions and allowed options | `GET /api/config/cma`, `GET /api/config/options` |
 
@@ -55,7 +56,7 @@ Interactive API docs: `http://localhost:8000/docs` (port 8001 when `BACKEND_PORT
   `list_accounts`, `list_model_portfolios`, `get_account_portfolio`, `run_simulation` (what-ifs with baseline),
   `compare_current_vs_model`, `propose_rebalance`, `simulate_and_rebalance` (creates pending orders),
   `explain_methodology`, `get_capital_market_assumptions`, `create_audio_summary`, `create_investor_video`,
-  `get_market_news`, `get_upcoming_earnings`, `get_corporate_actions`.
+  `get_market_news`, `get_upcoming_earnings`, `get_corporate_actions`, `get_market_heatmap`.
 - Providers (`app/llm.py`): Ollama (default `qwen2.5:7b`), OpenAI, Anthropic. Keys only from environment / `.env`;
   `/api/llm/providers` returns `api_key_set`, never the key.
 
@@ -79,6 +80,8 @@ Interactive API docs: `http://localhost:8000/docs` (port 8001 when `BACKEND_PORT
   earnings, dividends and splits calendars.
 - News tagged by topic, de-duplicated, sorted newest first; cached 15 minutes. Calendars cached 6 hours.
 - Earnings filtered to client holdings, the configurable watchlist and companies ≥ $50B market cap.
+- Heatmap: Nasdaq public screener; top N companies by market cap (default 100, 10–300, duplicate share classes
+  excluded), grouped by sector with market-cap-weighted sector and market change and up/down breadth; cached 15 minutes.
 - Items held by clients carry `held_by` account IDs. Failed sources are reported per source; nothing is invented.
 - Nasdaq and MarketWatch feeds are public but unofficial; check terms or use a licensed vendor for production.
 
@@ -101,7 +104,7 @@ python -m venv .venv; .venv\Scripts\activate
 pip install -r requirements.txt
 python -m piper.download_voices --download-dir voices en_US-lessac-medium
 uvicorn app.main:app --reload --port 8000
-pytest            # 94 tests
+pytest            # 98 tests
 ```
 Docker: `Dockerfile` (python:3.12-slim, health check `GET /api/health`). With the front end:
 `docker compose up -d --build` from the parent folder (app on `http://localhost:8080`).

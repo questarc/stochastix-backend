@@ -282,4 +282,25 @@ def build_tools(sources: dict, cma: CapitalMarketAssumptions, rebalance_settings
                  "ratio": i["ratio"], "held_by_accounts": i["held_by"]} for i in items[:20]] or "none"})
 
         tools += [get_market_news, get_upcoming_earnings, get_corporate_actions]
+
+        if "heatmap" in market_agents:
+            @tool
+            @safe
+            def get_market_heatmap() -> str:
+                """Today's market heatmap: daily % change by sector (market-cap weighted), breadth, and the biggest
+                gainers and decliners among the largest US companies."""
+                r = market_agents["heatmap"].heatmap()
+                if not r["items"]:
+                    return _dumps({"error": "Market heatmap data is unavailable right now."})
+                movers = sorted(r["items"], key=lambda i: i["change_pct"])
+                fmt = lambda i: {"symbol": i["symbol"], "name": i["name"], "change": f"{i['change_pct']:+.2f}%"}  # noqa: E731
+                return _dumps({"updated_at": r["updated_at"], "source": "Nasdaq",
+                               "market_change_cap_weighted": f"{r['market_change_pct']:+.2f}%",
+                               "breadth": f"{r['breadth']['up']} up, {r['breadth']['down']} down of {r['breadth']['total']}",
+                               "sectors": [{"sector": s["sector"], "change": f"{s['change_pct']:+.2f}%", "companies": s["count"]}
+                                           for s in r["sectors"]],
+                               "top_gainers": [fmt(i) for i in movers[::-1][:5]],
+                               "top_decliners": [fmt(i) for i in movers[:5]]})
+
+            tools.append(get_market_heatmap)
     return tools

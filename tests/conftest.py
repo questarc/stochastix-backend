@@ -26,6 +26,7 @@ def client():
     deps.get_market_agent.cache_clear()
     deps.get_earnings_agent.cache_clear()
     deps.get_corporate_actions_agent.cache_clear()
+    deps.get_heatmap_agent.cache_clear()
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

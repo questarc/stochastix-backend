@@ -12,7 +12,8 @@ from .rebalance import RebalanceSettings
 from .sources import SourceAgent, load_sources
 from .sources.base import BASE_DIR
 from .stores import InMemoryOrderStore, InMemoryUploadStore, OrderStore, UploadStore
-from .market import CorporateActionsAgent, EarningsAgent, MarketAnalyzerAgent, MarketHttp, MarketSettings, holdings_index
+from .market import (CorporateActionsAgent, EarningsAgent, MarketAnalyzerAgent, MarketHeatmapAgent, MarketHttp,
+                     MarketSettings, holdings_index)
 from .video import VideoGenAgent, VideoJobManager
 from .voice import AudioStore, PiperEngine, VoiceGenAgent
 
@@ -93,8 +94,14 @@ def get_corporate_actions_agent() -> CorporateActionsAgent:
     return CorporateActionsAgent(get_market_settings(), _market_http(), lambda: holdings_index(get_sources()))
 
 
+@lru_cache
+def get_heatmap_agent() -> MarketHeatmapAgent:
+    return MarketHeatmapAgent(get_market_settings(), _market_http(), lambda: holdings_index(get_sources()))
+
+
 def get_market_agents() -> dict:
-    return {"news": get_market_agent(), "earnings": get_earnings_agent(), "actions": get_corporate_actions_agent()}
+    return {"news": get_market_agent(), "earnings": get_earnings_agent(), "actions": get_corporate_actions_agent(),
+            "heatmap": get_heatmap_agent()}
 
 
 @lru_cache

@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
-from .sources import MarketHttp, dividend_rows, earnings_rows, parse_rss, split_rows
+from .sources import MarketHttp, dividend_rows, earnings_rows, parse_rss, screener_rows, split_rows
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,10 @@ class MarketSettings:
     request_timeout_seconds: float = 10
     user_agent: str = "Mozilla/5.0"
     max_items: int = 30
+    heatmap_url: str = ""
+    heatmap_size: int = 100
+    heatmap_ttl_minutes: float = 15
+    heatmap_exclude: list[str] = field(default_factory=list)
 
     @classmethod
     def load(cls, path: str | Path) -> "MarketSettings":
@@ -180,3 +184,43 @@ class CorporateActionsAgent(_Cached):
             items.append({**r, "held_by": held.get(r["symbol"].upper(), [])})
         items.sort(key=lambda r: (not r["held_by"], r["ex_date"], r["symbol"]))
         return {"items": items[: self.settings.max_items * 2], "errors": errors, "source": "Nasdaq"}
+
+
+class MarketHeatmapAgent(_Cached):
+    """Daily % change of the largest US companies, grouped by sector (Nasdaq public screener)."""
+
+    def __init__(self, settings: MarketSettings, http: MarketHttp, holdings: Callable[[], dict], clock=time.monotonic):
+        super().__init__(settings.heatmap_ttl_minutes, clock)
+        self.settings, self.http, self.holdings = settings, http, holdings
+
+    def heatmap(self, size: int | None = None, refresh: bool = False) -> dict:
+        n = min(max(size or self.settings.heatmap_size, 10), 300)
+        return self.get(f"heatmap:{n}", lambda: self._build(n), refresh)
+
+    def _build(self, size: int) -> dict:
+        try:
+            rows = screener_rows(self.http.get_json(self.settings.heatmap_url))
+        except Exception as exc:
+            logger.info("Heatmap source failed: %s", type(exc).__name__)
+            return {"items": [], "sectors": [], "errors": [{"source": "Nasdaq screener", "error": type(exc).__name__}],
+                    "source": "Nasdaq"}
+        exclude = {s.upper() for s in self.settings.heatmap_exclude}
+        held = self.holdings()
+        top = sorted((r for r in rows if r["symbol"].upper() not in exclude), key=lambda r: -r["market_cap"])[:size]
+        items = [{**r, "held_by": held.get(r["symbol"].upper(), [])} for r in top]
+        sectors: dict[str, dict] = {}
+        for i in items:
+            s = sectors.setdefault(i["sector"], {"sector": i["sector"], "market_cap": 0.0, "weighted": 0.0, "count": 0})
+            s["market_cap"] += i["market_cap"]
+            s["weighted"] += i["market_cap"] * i["change_pct"]
+            s["count"] += 1
+        summary = [{"sector": s["sector"], "market_cap": s["market_cap"], "count": s["count"],
+                    "change_pct": round(s["weighted"] / s["market_cap"], 3)} for s in sectors.values()]
+        summary.sort(key=lambda s: -s["market_cap"])
+        total = sum(i["market_cap"] for i in items)
+        market = round(sum(i["market_cap"] * i["change_pct"] for i in items) / total, 3) if total else None
+        up = sum(1 for i in items if i["change_pct"] > 0)
+        return {"items": items, "sectors": summary, "errors": [], "source": "Nasdaq",
+                "breadth": {"up": up, "down": sum(1 for i in items if i["change_pct"] < 0), "total": len(items)},
+                "market_change_pct": market}
+

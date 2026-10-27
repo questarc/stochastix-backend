@@ -119,6 +119,20 @@ def dividend_rows(payload: dict) -> list[dict]:
     } for r in rows if r.get("symbol")]
 
 
+def screener_rows(payload: dict) -> list[dict]:
+    data = payload.get("data") or {}
+    rows = data.get("rows") or (data.get("table") or {}).get("rows") or []
+    out = []
+    for r in rows:
+        cap, change = parse_money(r.get("marketCap")), parse_money(r.get("pctchange"))
+        if not r.get("symbol") or not cap or change is None:
+            continue
+        out.append({"symbol": r["symbol"].strip(), "name": _clean(r.get("name"), 60),
+                    "sector": (r.get("sector") or "").strip() or "Other", "industry": _clean(r.get("industry"), 60),
+                    "market_cap": cap, "change_pct": change, "price": parse_money(r.get("lastsale"))})
+    return out
+
+
 def split_rows(payload: dict) -> list[dict]:
     rows = (payload.get("data") or {}).get("rows") or []
     return [{

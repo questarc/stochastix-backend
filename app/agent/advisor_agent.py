@@ -39,6 +39,7 @@ you already gave, word for word, including its numbers. Do not add new figures.
 11. When asked for a video for the client or investor, call create_investor_video once for that account.
 12. For economic news, upcoming earnings or corporate actions (dividends, splits), use get_market_news, \
 get_upcoming_earnings or get_corporate_actions. Report only items the tools return, with their source and date.
+13. For how the market or sectors are doing today, use get_market_heatmap.
 """
 
 
