@@ -1,0 +1,113 @@
+# Monte Carlo Simulation Advisor AI — Features (back end)
+
+FastAPI back end for **Monte Carlo Simulation Advisor AI**. It does every calculation; the Angular front end
+(separate repository) only displays results. The language model never calculates numbers — it only calls tools.
+
+Results are projections, not guarantees, and not investment advice.
+
+## Feature overview
+
+| Feature | What it does | Endpoints |
+|---|---|---|
+| 🎲 Simulation | Monte Carlo projection of current and model portfolios; probability of success, percentile bands, histograms | `POST /api/simulations` |
+| ⚖️ Rebalance | Drift vs the model portfolio, proposed sells/buys funded by sells, success before/after | `POST /api/rebalance/proposal`, `GET /api/rebalance/settings` |
+| 🧾 Orders | Pending order blotter, CSV/JSON export | `POST /api/orders/generate`, `GET/DELETE /api/orders`, `GET /api/orders/export` |
+| 📂 Source agents | Sales CSV, A360 Positions (with upload), A360/Orion API placeholders | `/api/sources/...`, `GET /api/accounts/{id}/portfolio` |
+| 🤖 Advisor AI | LangChain + LangGraph agent with 14 tools; Ollama, OpenAI, Anthropic | `POST /api/chat`, `DELETE /api/chat/{thread_id}`, `GET /api/llm/providers` |
+| 🌐 WebLLM support | Exposes the same tools to an agent running in the browser | `GET /api/agent/tools`, `POST /api/agent/tools/{name}` |
+| 🔊 VoiceGenAgent | Audio summary (WAV) of an AI answer for the investor, local Piper TTS | `POST /api/voice`, `GET /api/voice/{id}` |
+| 🎬 VideoGenAgent | ~90 s narrated investor video (MP4) with animated advisor, charts and subtitles | `POST /api/video`, `GET /api/video/jobs/{id}`, `GET /api/video/{id}` |
+| 📰 MarketAnalyzerAgent | Latest economic and market news | `GET /api/market/news` |
+| 📈 EarningsAgent | Upcoming earnings reports | `GET /api/market/earnings` |
+| 🏦 CorporateActionsAgent | Upcoming dividends and stock splits | `GET /api/market/corporate-actions` |
+| 📖 Methodology | "How it works" text | `GET /api/methodology` |
+| ⚙️ Config | Capital market assumptions and allowed options | `GET /api/config/cma`, `GET /api/config/options` |
+
+Interactive API docs: `http://localhost:8000/docs` (port 8001 when `BACKEND_PORT=8001`).
+
+## Monte Carlo engine (`app/engine/`)
+- Sampling: PRNG, Latin Hypercube, scrambled Sobol. Copulas: Gaussian, Student-t (df > 2).
+- Seven return distributions (lognormal, normal, uniform, triangular, PERT, exponential, binomial), each matching the
+  configured expected return and volatility.
+- Yearly loop: contributions before retirement, inflation-adjusted withdrawals after; values floored at zero.
+- Same inputs and seed give identical results; seed and settings are logged and returned for audit.
+- API returns bands, a 60-bin ending-value histogram and depletion ages — never raw paths (optional `sample_paths` ≤ 100).
+  Runs in a thread pool; trials capped at 50,000.
+
+## Rebalancing and orders (`app/rebalance.py`, `app/stores.py`)
+- Drift per asset class; rebalance only above `drift_tolerance` (default 2%).
+- Overweight holdings sold pro rata; proceeds split across underweight classes by shortfall; whole shares and minimum
+  trade value respected; leftover goes to cash.
+- Orders: sells first, Market / Day / **Pending**, ID `{account}-{timestamp}-{nnn}`. New orders replace pending orders
+  of the same account. Stored in memory behind an `OrderStore` interface.
+
+## Source agents (`app/sources/`)
+- **Sales**: accounts, positions and model portfolios from CSV.
+- **A360 Positions**: parses A360 exports (`$`, `,`, `(123)`, blank `Qty` → `Custodian Quantity`, CUSIP when no
+  ticker, price from `Market Value / Qty`, asset class by ticker override → Sec Type → default). Uploads replace an
+  account's positions in memory until reset.
+- **A360 API / Orion API**: placeholders (HTTP 501).
+
+## Advisor AI (`app/agent/`)
+- `create_agent` + `InMemorySaver` (memory per `thread_id`), recursion limit 20, one agent cached per (provider, model).
+- On-screen account/model are prefixed to each message; a client named in the question wins.
+- Tools return pre-formatted JSON and catch their own errors:
+  `list_accounts`, `list_model_portfolios`, `get_account_portfolio`, `run_simulation` (what-ifs with baseline),
+  `compare_current_vs_model`, `propose_rebalance`, `simulate_and_rebalance` (creates pending orders),
+  `explain_methodology`, `get_capital_market_assumptions`, `create_audio_summary`, `create_investor_video`,
+  `get_market_news`, `get_upcoming_earnings`, `get_corporate_actions`.
+- Providers (`app/llm.py`): Ollama (default `qwen2.5:7b`), OpenAI, Anthropic. Keys only from environment / `.env`;
+  `/api/llm/providers` returns `api_key_set`, never the key.
+
+## VoiceGenAgent (`app/voice/`)
+- Rule-based script: strips markdown/tables, rewords figures for speech ("76.8%" → "76.8 percent",
+  "$1,380,575" → "1,380,575 dollars") **without changing values**, adds opening and advisor name, and always ends with
+  the fixed disclaimer.
+- Piper TTS (`en_US-lessac-medium`, free, offline; text never leaves the server). Voice downloaded in the Docker build.
+- Newest 50 clips kept in memory; file name `{account}_summary_{timestamp}.wav`.
+
+## VideoGenAgent (`app/video/`)
+- Scenes: title, probability of success, fan chart, allocation, outcomes, optional rebalance, closing with disclaimer.
+- Narration is a fixed template filled only with engine results; spoken with Piper; subtitles synced per sentence.
+- Animated illustrated advisor in the bottom bar (mouth follows narration loudness, blinking, glow ring).
+- Charts with matplotlib in the app's dark-blue style; encoded H.264/AAC with ffmpeg (`imageio-ffmpeg`), 1280×720.
+- Background job manager (one render at a time, progress reported); about 30 s to render a ~94 s, ~2.6 MB video.
+- Newest 10 videos kept in memory; file name `{account}_plan_update_{timestamp}.mp4`.
+
+## Market agents (`app/market/`, `config/market.json`)
+- Free sources, **no API key**: Federal Reserve (press, speeches), BEA, SEC, ECB, MarketWatch RSS; Nasdaq public
+  earnings, dividends and splits calendars.
+- News tagged by topic, de-duplicated, sorted newest first; cached 15 minutes. Calendars cached 6 hours.
+- Earnings filtered to client holdings, the configurable watchlist and companies ≥ $50B market cap.
+- Items held by clients carry `held_by` account IDs. Failed sources are reported per source; nothing is invented.
+- Nasdaq and MarketWatch feeds are public but unofficial; check terms or use a licensed vendor for production.
+
+## Configuration
+| File / variable | Purpose |
+|---|---|
+| `config/capital_market_assumptions.json` | Returns, volatility, correlation, distributions, inflation |
+| `config/rebalance.json` | Drift tolerance, minimum trade, whole shares, default securities |
+| `config/sources.json` | Enabled source agents and file paths |
+| `config/llm.json` | Providers, models, temperature, timeout, max trials per tool call |
+| `config/market.json` | News feeds, calendar URLs, watchlist, cache times |
+| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` | LLM keys (`.env`, git- and docker-ignored) |
+| `OLLAMA_BASE_URL`, `MCAPP_LLM_PROVIDER`, `MCAPP_LLM_MODEL` | LLM overrides |
+| `MCAPP_VOICE`, `MCAPP_VOICES_DIR` | Piper voice |
+| `CORS_ORIGINS`, `MCAPP_LOG_LEVEL` | CORS and logging |
+
+## Run
+```powershell
+python -m venv .venv; .venv\Scripts\activate
+pip install -r requirements.txt
+python -m piper.download_voices --download-dir voices en_US-lessac-medium
+uvicorn app.main:app --reload --port 8000
+pytest            # 94 tests
+```
+Docker: `Dockerfile` (python:3.12-slim, health check `GET /api/health`). With the front end:
+`docker compose up -d --build` from the parent folder (app on `http://localhost:8080`).
+
+## Known limitations
+- Orders, uploads, chat memory, audio and videos are in memory and lost on restart (stores sit behind interfaces so a
+  database can replace them).
+- No login; anyone who can reach the app can use every feature.
+- Audio and video sent to investors are client communications; follow your firm's review and record-keeping rules.
