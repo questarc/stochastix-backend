@@ -1,4 +1,4 @@
-"""A360 Positions source agent: accounts and models from CSV, positions from A360 Positions exports."""
+"""Positions source agent: accounts and models from CSV, positions from A360 Positions exports."""
 from __future__ import annotations
 
 import io
@@ -46,7 +46,7 @@ def classify_asset(ticker: str, sec_type: str, config: dict) -> str:
     return config.get("default_asset_class", "US Equity")
 
 
-def parse_a360_positions(source, account_id: str, config: dict) -> list[Position]:
+def parse_positions(source, account_id: str, config: dict) -> list[Position]:
     """Parse an A360 Positions export (path, bytes or text) into positions for ``account_id``."""
     if isinstance(source, (bytes, bytearray)):
         source = io.StringIO(source.decode("utf-8-sig"))
@@ -75,7 +75,7 @@ def parse_a360_positions(source, account_id: str, config: dict) -> list[Position
     return positions
 
 
-@register("a360_positions")
+@register("positions")
 class A360PositionsAgent(SalesAgent):
     supports_upload = True
 
@@ -92,8 +92,8 @@ class A360PositionsAgent(SalesAgent):
         files = self.config.get("positions_files", {})
         if account_id not in files:
             return []
-        return parse_a360_positions(str(self.resolve_path(files[account_id])), account_id, self.config)
+        return parse_positions(str(self.resolve_path(files[account_id])), account_id, self.config)
 
     def parse_upload(self, content: bytes, account_id: str) -> list[Position]:
         self.get_account(account_id)
-        return parse_a360_positions(content, account_id, self.config)
+        return parse_positions(content, account_id, self.config)

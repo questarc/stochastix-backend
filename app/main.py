@@ -29,7 +29,7 @@ def _message(exc: Exception) -> str:
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Monte Carlo Simulation Advisor AI", version="1.0.0")
+    app = FastAPI(title="Stochastix AI", version="1.0.0")
 
     origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:4200").split(",") if o.strip()]
     app.add_middleware(

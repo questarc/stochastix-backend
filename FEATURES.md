@@ -1,6 +1,6 @@
-# Monte Carlo Simulation Advisor AI — Features (back end)
+# Stochastix AI — Features (back end)
 
-FastAPI back end for **Monte Carlo Simulation Advisor AI**. It does every calculation; the Angular front end
+FastAPI back end for **Stochastix AI**. It does every calculation; the Angular front end
 (separate repository) only displays results. The language model never calculates numbers — it only calls tools.
 
 Results are projections, not guarantees, and not investment advice.

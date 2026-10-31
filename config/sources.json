@@ -9,8 +9,8 @@
       "models_file": "data/sales/model_portfolios.csv"
     },
     {
-      "name": "a360_positions",
-      "type": "a360_positions",
+      "name": "positions",
+      "type": "positions",
       "enabled": true,
       "accounts_file": "data/a360/accounts.csv",
       "models_file": "data/sales/model_portfolios.csv",

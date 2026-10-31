@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from . import a360_positions_agent, api_agents, sales_agent  # noqa: F401  (registers types)
+from . import api_agents, positions_agent, sales_agent  # noqa: F401  (registers types)
 from .base import BASE_DIR, SourceAgent, create, register, registered_types
 
 

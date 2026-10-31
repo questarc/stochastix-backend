@@ -15,7 +15,7 @@ def test_health(client):
 
 def test_sources_accounts_models(client):
     names = [s["name"] for s in client.get("/api/sources").json()]
-    assert names == ["sales", "a360_positions"]
+    assert names == ["sales", "positions"]
     accounts = client.get("/api/sources/sales/accounts").json()
     assert accounts[0]["account_id"] == "A1001"
     models = client.get("/api/sources/sales/models").json()
@@ -84,7 +84,7 @@ def test_orders_lifecycle(client):
 
 
 def test_upload_and_reset_positions(client):
-    url = "/api/sources/a360_positions/accounts/A2001/positions/upload"
+    url = "/api/sources/positions/accounts/A2001/positions/upload"
     r = client.post(url, files={"file": ("p.csv", A360_CSV, "text/csv")})
     assert r.status_code == 200 and [p["ticker"] for p in r.json()] == ["VTI", "BND"]
     assert client.get("/api/accounts/A2001/portfolio").json()["market_value"] == 44_600

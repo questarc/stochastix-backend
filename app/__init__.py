@@ -1,1 +1,1 @@
-"""Monte Carlo Simulation Advisor AI back end."""
+"""Stochastix AI back end."""
