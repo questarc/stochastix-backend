@@ -59,7 +59,7 @@ def advisor_bar(img: Image.Image, advisor: str) -> None:
     d = ImageDraw.Draw(img)
     d.line((0, BAR_Y, W, BAR_Y), fill=ACCENT, width=2)
     d.text((40 + AVATAR + 28 + 30, BAR_Y + 18), advisor, font=font(22, True), fill=WHITE)
-    d.text((40 + AVATAR + 28 + 30, BAR_Y + 46), "Your financial advisor  ·  Advisor360", font=font(16), fill=MUTED)
+    d.text((40 + AVATAR + 28 + 30, BAR_Y + 46), "Your financial advisor  ·  Stochastix AI", font=font(16), fill=MUTED)
 
 
 SUB_X = 40 + AVATAR + 58

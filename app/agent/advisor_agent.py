@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 TOOL_RESULT_LIMIT = 2_000
 
-SYSTEM_PROMPT = """You are Advisor AI, an assistant for financial advisors inside the \
+SYSTEM_PROMPT = """You are Stochastix AI, an assistant for financial advisors inside the \
 Stochastix AI app.
 
 Rules:
