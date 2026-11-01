@@ -9,6 +9,7 @@ Results are projections, not guarantees, and not investment advice.
 
 | Feature | What it does | Endpoints |
 |---|---|---|
+| 📄 E*TRADE statement reader | Extracts transfer analytics from PDFs, excludes personal identifiers and retains only allowlisted transfer fields in session memory | `GET/DELETE /api/etrade/statement`, `POST /api/etrade/statement/upload` |
 | 🎲 Simulation | Monte Carlo projection of current and model portfolios; probability of success, percentile bands, histograms | `POST /api/simulations` |
 | ⚖️ Rebalance | Drift vs the model portfolio, proposed sells/buys funded by sells, success before/after | `POST /api/rebalance/proposal`, `GET /api/rebalance/settings` |
 | 🧾 Orders | Pending order blotter, CSV/JSON export | `POST /api/orders/generate`, `GET/DELETE /api/orders`, `GET /api/orders/export` |
@@ -85,6 +86,21 @@ Interactive API docs: `http://localhost:8000/docs` (port 8001 when `BACKEND_PORT
 - Items held by clients carry `held_by` account IDs. Failed sources are reported per source; nothing is invented.
 - Nasdaq and MarketWatch feeds are public but unofficial; check terms or use a licensed vendor for production.
 
+## E*TRADE PDF reader (`app/etrade.py`)
+- Upload a text-based PDF up to 20 MB and 500 pages; extracted text is limited to 2 million characters.
+- The PDF and unredacted extracted text are processed transiently in memory and never written to disk or a database.
+- The response preview is generated from allowlisted transfer dates, statuses, and amounts; the original filename,
+  full statement text, account labels, names, SSNs, passwords, and addresses are not retained.
+- Only the allowlisted analytics are retained in process memory per browser session until cleared or backend restart.
+- The session key is not authentication; do not expose financial statements through an untrusted deployment.
+- Transfer activity parsing reports transaction count, listed amount, completed amount and scheduled amount. It does
+  not infer a portfolio balance, holdings or investment performance. Analytics are view-only; no brokerage actions
+  are submitted.
+- Defense-in-depth text redaction recognizes common labeled identity, SSN, credential and address fields, but the
+  displayed preview is allowlist-generated rather than relying on pattern redaction to identify every personal value.
+- Scanned/image-only and password-protected PDFs are not supported. Only transfer-activity rows are structured; other
+  statement types remain text-only and do not provide balance, holdings or performance analytics.
+
 ## Configuration
 | File / variable | Purpose |
 |---|---|
@@ -110,7 +126,7 @@ Docker: `Dockerfile` (python:3.12-slim, health check `GET /api/health`). With th
 `docker compose up -d --build` from the parent folder (app on `http://localhost:8080`).
 
 ## Known limitations
-- Orders, uploads, chat memory, audio and videos are in memory and lost on restart (stores sit behind interfaces so a
+- Orders, uploads, imported E*TRADE statement text, chat memory, audio and videos are in memory and lost on restart (stores sit behind interfaces so a
   database can replace them).
 - No login; anyone who can reach the app can use every feature.
 - Audio and video sent to investors are client communications; follow your firm's review and record-keeping rules.

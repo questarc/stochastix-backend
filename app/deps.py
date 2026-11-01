@@ -11,7 +11,8 @@ from .llm import LLMSettings, build_chat_model
 from .rebalance import RebalanceSettings
 from .sources import SourceAgent, load_sources
 from .sources.base import BASE_DIR
-from .stores import InMemoryOrderStore, InMemoryUploadStore, OrderStore, UploadStore
+from .stores import (InMemoryEtradeStatementStore, InMemoryOrderStore, InMemoryUploadStore, OrderStore,
+                    UploadStore)
 from .market import (CorporateActionsAgent, EarningsAgent, MarketAnalyzerAgent, MarketHeatmapAgent, MarketHttp,
                      MarketSettings, holdings_index)
 from .video import VideoGenAgent, VideoJobManager
@@ -23,6 +24,11 @@ CONFIG_DIR = BASE_DIR / "config"
 @lru_cache
 def get_upload_store() -> UploadStore:
     return InMemoryUploadStore()
+
+
+@lru_cache
+def get_etrade_statement_store() -> InMemoryEtradeStatementStore:
+    return InMemoryEtradeStatementStore()
 
 
 @lru_cache

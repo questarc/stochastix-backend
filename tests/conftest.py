@@ -18,6 +18,7 @@ def client():
 
     deps.get_order_store.cache_clear()
     deps.get_upload_store.cache_clear()
+    deps.get_etrade_statement_store.cache_clear()
     deps.get_sources.cache_clear()
     deps.get_agent_tools.cache_clear()
     deps.get_voice_agent.cache_clear()

@@ -65,3 +65,44 @@ class InMemoryUploadStore(UploadStore):
     def reset(self, source: str, account_id: str) -> bool:
         with self._lock:
             return self._data.pop((source, account_id), None) is not None
+
+
+class InMemoryEtradeStatementStore:
+    """Keep only non-identifying analytics per browser session; never retain PDF or extracted text."""
+
+    def __init__(self) -> None:
+        self._statements: dict[str, dict] = {}
+        self._lock = threading.Lock()
+
+    def get(self, session_id: str) -> dict | None:
+        with self._lock:
+            statement = self._statements.get(session_id)
+            return dict(statement) if statement else None
+
+    def set(self, session_id: str, statement: dict) -> None:
+        rows = [
+            {
+                "date": row["date"],
+                "type": "Transfer",
+                "amount": float(row["amount"]),
+                "status": row["status"],
+            }
+            for row in statement["transactions"]
+        ]
+        summary = statement["summary"]
+        safe_statement = {
+            "filename": "E*TRADE statement",
+            "page_count": int(statement["page_count"]),
+            "text": "",
+            "character_count": 0,
+            "imported_at": statement["imported_at"],
+            "document_type": statement["document_type"],
+            "transactions": rows,
+            "summary": dict(summary) if summary else None,
+        }
+        with self._lock:
+            self._statements[session_id] = safe_statement
+
+    def clear(self, session_id: str) -> bool:
+        with self._lock:
+            return self._statements.pop(session_id, None) is not None

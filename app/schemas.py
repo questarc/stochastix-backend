@@ -51,6 +51,31 @@ class AccountPortfolio(BaseModel):
     market_value: float
 
 
+class EtradeStatement(BaseModel):
+    filename: str
+    page_count: int
+    text: str
+    character_count: int
+    imported_at: str
+    document_type: str
+    transactions: list["EtradeTransaction"] = Field(default_factory=list)
+    summary: "EtradeTransferSummary | None" = None
+
+
+class EtradeTransaction(BaseModel):
+    date: str
+    type: str
+    amount: float
+    status: str
+
+
+class EtradeTransferSummary(BaseModel):
+    transaction_count: int
+    total_amount: float
+    completed_amount: float
+    scheduled_amount: float
+
+
 class SimulationRequest(BaseModel):
     account_id: str
     model_id: str | None = None
