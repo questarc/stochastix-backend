@@ -23,6 +23,7 @@ Results are projections, not guarantees, and not investment advice.
 | 📈 EarningsAgent | Upcoming earnings reports | `GET /api/market/earnings` |
 | 🏦 CorporateActionsAgent | Upcoming dividends and stock splits | `GET /api/market/corporate-actions` |
 | 🗺️ MarketHeatmapAgent | Daily % change of the largest US companies by sector (treemap data) | `GET /api/market/heatmap?size=100` |
+| 📉 Time Series & Statistical Models | User-uploaded time series analyzed with forward-return linear regression or up-probability logistic regression | `POST /api/time-series/preview`, `POST /api/time-series/analyze` |
 | 📖 Methodology | "How it works" text | `GET /api/methodology` |
 | ⚙️ Config | Capital market assumptions and allowed options | `GET /api/config/cma`, `GET /api/config/options` |
 
@@ -89,6 +90,17 @@ Interactive API docs: `http://localhost:8000/docs` (port 8001 when `BACKEND_PORT
   excluded), grouped by sector with market-cap-weighted sector and market change and up/down breadth; cached 15 minutes.
 - Items held by clients carry `held_by` account IDs. Failed sources are reported per source; nothing is invented.
 - Nasdaq and MarketWatch feeds are public but unofficial; check terms or use a licensed vendor for production.
+
+## Time Series & Statistical Models (`app/time_series.py`)
+- CSV uploads (20 MB / 100,000 rows) are analyzed in memory; preview returns column names and type metadata only.
+- Pick a date column, positive asset-price target, numeric predictors, and a 1–30 observation horizon.
+- Linear model target is the forward simple return `(price[t+h] / price[t]) - 1`; logistic target is whether that return
+  is positive. Predictors use values available at date `t`, and dates are sorted chronologically.
+- Incomplete observations are removed; predictors are standardized using the training portion only. The first 80% of
+  complete observations train the model, with the final 20% reserved as a chronological holdout.
+- Linear output includes test R²/MAE/RMSE and coefficient standard errors/p-values; logistic output includes test
+  accuracy, precision, recall, ROC AUC, log loss, confusion counts, and odds ratios. No uploaded observations are
+  retained. Associations are not causal estimates, and a holdout is not a validated trading strategy.
 
 ## E*TRADE PDF reader (`app/etrade.py`)
 - Upload a text-based PDF up to 20 MB and 500 pages; extracted text is limited to 2 million characters.
