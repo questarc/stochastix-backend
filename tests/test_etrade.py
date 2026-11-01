@@ -768,3 +768,29 @@ def test_fidelity_statement_store_is_separate_from_etrade(client, monkeypatch):
     stored = client.get("/api/fidelity/statement", headers=session).json()
     assert stored["filename"] == "Fidelity statement" and stored["text"] == ""
     assert client.get("/api/etrade/statement", headers=session).json() is None
+
+
+def test_fidelity_positions_csv_upload_is_session_scoped_and_excludes_account_details(client):
+    session_a = {"X-Statement-Session": "fidelity-browser-session-012345"}
+    session_b = {"X-Statement-Session": "fidelity-browser-session-987654"}
+    csv_content = (
+        "Account number,Account name,Symbol,Description,Quantity,Last price,Last price change,"
+        "Current value,Today's gain/loss dollar,Today's gain/loss percent,Total gain/loss dollar,"
+        "Total gain/loss percent,Percent of account,Cost basis total,Average cost basis,Type\n"
+        "private-account,Private Name,GLD,SPDR GOLD TR GOLD SHS,2,$355.78,-$12.79,$711.56,"
+        "-$25.58,-3.48%,-$111.41,-13.54%,1.12%,$822.97,$411.49,Cash\n"
+    )
+
+    response = client.post(
+        "/api/fidelity/positions/upload",
+        files={"file": ("positions.csv", csv_content.encode(), "text/csv")},
+        headers=session_a,
+    )
+
+    assert response.status_code == 200
+    assert response.json()[0]["symbol"] == "GLD"
+    assert "private-account" not in response.text and "Private Name" not in response.text
+    assert client.get("/api/fidelity/positions", headers=session_a).json() == response.json()
+    assert client.get("/api/fidelity/positions", headers=session_b).json() is None
+    assert client.delete("/api/fidelity/positions", headers=session_a).json() == {"cleared": True}
+    assert client.get("/api/fidelity/positions", headers=session_a).json() is None

@@ -47,8 +47,11 @@ Interactive API docs: `http://localhost:8000/docs` (port 8001 when `BACKEND_PORT
 ## Source agents (`app/sources/`)
 - **Sales**: accounts, positions and model portfolios from CSV.
 - **A360 Positions**: parses A360 exports (`$`, `,`, `(123)`, blank `Qty` → `Custodian Quantity`, CUSIP when no
-  ticker, price from `Market Value / Qty`, asset class by ticker override → Sec Type → default). Uploads replace an
-  account's positions in memory until reset.
+  ticker, price from `Market Value / Qty`, asset class by ticker override → Sec Type → default) and Fidelity positions
+  exports (`Symbol`, `Quantity`, `Last price`, `Current value`). Fidelity rows from all account numbers in the
+  uploaded CSV are combined into the selected Quant Models account; account names/numbers and the other performance
+  columns are not stored. Money-market rows with blank quantities use current value as quantity at $1/share; pending
+  activity and rows without symbols are skipped. Uploads replace an account's positions in memory until reset.
 - **A360 API / Orion API**: placeholders (HTTP 501).
 
 ## Advisor AI (`app/agent/`)
@@ -109,6 +112,8 @@ Interactive API docs: `http://localhost:8000/docs` (port 8001 when `BACKEND_PORT
   numeric values (beginning/ending market value, quantity, unit price, cost basis, unrealized gain/loss, and EAI/EY).
   The Activity section displays settlement date, security, description, quantity, price, cost basis, transaction
   cost, and amount from recognized transaction tables; requested security fields are retained with those rows.
+  Fidelity Agent also accepts positions CSV exports and retains only the displayed position fields, excluding account
+  names and numbers.
   It does not infer investment returns; other layouts receive a sanitized structure preview.
   Unrecognized Fidelity previews may include safe parser diagnostics (label count, boundary presence, and amount count),
   never extracted financial values.

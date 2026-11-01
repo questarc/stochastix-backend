@@ -102,6 +102,23 @@ class FidelityActivityTransaction(BaseModel):
     amount: float | None = None
 
 
+class FidelityCsvPosition(BaseModel):
+    symbol: str
+    description: str
+    quantity: float | None = None
+    last_price: float | None = None
+    last_price_change: float | None = None
+    current_value: float | None = None
+    todays_gain_loss_dollar: float | None = None
+    todays_gain_loss_percent: float | None = None
+    total_gain_loss_dollar: float | None = None
+    total_gain_loss_percent: float | None = None
+    percent_of_account: float | None = None
+    cost_basis_total: float | None = None
+    average_cost_basis: float | None = None
+    type: str | None = None
+
+
 class EtradeStatement(BaseModel):
     filename: str
     page_count: int

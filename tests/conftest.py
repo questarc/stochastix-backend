@@ -20,6 +20,7 @@ def client():
     deps.get_upload_store.cache_clear()
     deps.get_etrade_statement_store.cache_clear()
     deps.get_fidelity_statement_store.cache_clear()
+    deps.get_fidelity_positions_store.cache_clear()
     deps.get_sources.cache_clear()
     deps.get_agent_tools.cache_clear()
     deps.get_voice_agent.cache_clear()

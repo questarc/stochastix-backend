@@ -176,3 +176,45 @@ class InMemoryEtradeStatementStore:
     def clear(self, session_id: str) -> bool:
         with self._lock:
             return self._statements.pop(session_id, None) is not None
+
+
+class InMemoryFidelityPositionsStore:
+    """Keep only displayed Fidelity position fields per browser session."""
+
+    ALLOWED_FIELDS = (
+        "symbol",
+        "description",
+        "quantity",
+        "last_price",
+        "last_price_change",
+        "current_value",
+        "todays_gain_loss_dollar",
+        "todays_gain_loss_percent",
+        "total_gain_loss_dollar",
+        "total_gain_loss_percent",
+        "percent_of_account",
+        "cost_basis_total",
+        "average_cost_basis",
+        "type",
+    )
+
+    def __init__(self) -> None:
+        self._positions: dict[str, list[dict]] = {}
+        self._lock = threading.Lock()
+
+    def get(self, session_id: str) -> list[dict] | None:
+        with self._lock:
+            positions = self._positions.get(session_id)
+            return [dict(row) for row in positions] if positions is not None else None
+
+    def set(self, session_id: str, positions: list[dict]) -> None:
+        safe_positions = [
+            {field: row.get(field) for field in self.ALLOWED_FIELDS}
+            for row in positions
+        ]
+        with self._lock:
+            self._positions[session_id] = safe_positions
+
+    def clear(self, session_id: str) -> bool:
+        with self._lock:
+            return self._positions.pop(session_id, None) is not None
