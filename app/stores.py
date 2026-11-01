@@ -68,7 +68,7 @@ class InMemoryUploadStore(UploadStore):
 
 
 class InMemoryEtradeStatementStore:
-    """Keep only non-identifying analytics per browser session; never retain PDF or extracted text."""
+    """Keep allowlisted statement analytics per browser session; never retain PDF or full extracted text."""
 
     def __init__(self) -> None:
         self._statements: dict[str, dict] = {}
@@ -90,15 +90,85 @@ class InMemoryEtradeStatementStore:
             for row in statement["transactions"]
         ]
         summary = statement["summary"]
+        structure_preview = statement["text"] if statement["document_type"] == "statement_structure" else ""
+        portfolio_summary = statement.get("portfolio_summary")
+        account_summaries = [
+            {
+                field: row.get(field)
+                for field in (
+                    "account_value",
+                    "change_in_account_value",
+                    "beginning_value",
+                    "additions",
+                    "subtractions",
+                    "transaction_costs",
+                    "investment_change",
+                    "ending_value",
+                    "accrued_interest",
+                    "income_this_period",
+                    "income_year_to_date",
+                    "top_holdings_value",
+                    "top_holdings_percent",
+                )
+            }
+            for row in statement.get("account_summaries", [])
+        ]
+        holdings = [
+            {
+                field: row.get(field)
+                for field in (
+                    "beginning_market_value",
+                    "quantity",
+                    "price_per_unit",
+                    "ending_market_value",
+                    "cost_basis",
+                    "unrealized_gain_loss",
+                    "estimated_annual_income",
+                    "estimated_yield_percent",
+                )
+            }
+            for row in statement.get("holdings", [])
+        ]
+        activity_transactions = [
+            {
+                field: row.get(field)
+                for field in (
+                    "settlement_date",
+                    "security_name",
+                    "symbol_cusip",
+                    "description",
+                    "quantity",
+                    "price",
+                    "total_cost_basis",
+                    "transaction_cost",
+                    "amount",
+                )
+            }
+            for row in statement.get("activity_transactions", [])
+        ]
         safe_statement = {
-            "filename": "E*TRADE statement",
+            "filename": statement["filename"],
             "page_count": int(statement["page_count"]),
-            "text": "",
-            "character_count": 0,
+            "text": structure_preview,
+            "character_count": len(structure_preview),
             "imported_at": statement["imported_at"],
             "document_type": statement["document_type"],
             "transactions": rows,
             "summary": dict(summary) if summary else None,
+            "portfolio_summary": {
+                "beginning_value": portfolio_summary.get("beginning_value"),
+                "ending_value": portfolio_summary.get("ending_value"),
+                "reported_change": portfolio_summary.get("reported_change"),
+                "total_including_other_holdings": portfolio_summary.get("total_including_other_holdings"),
+                "statement_period": portfolio_summary.get("statement_period"),
+                "income_this_period": portfolio_summary.get("income_this_period"),
+                "income_year_to_date": portfolio_summary.get("income_year_to_date"),
+                "top_holdings_value": portfolio_summary.get("top_holdings_value"),
+                "top_holdings_percent": portfolio_summary.get("top_holdings_percent"),
+            } if portfolio_summary else None,
+            "account_summaries": account_summaries,
+            "holdings": holdings,
+            "activity_transactions": activity_transactions,
         }
         with self._lock:
             self._statements[session_id] = safe_statement

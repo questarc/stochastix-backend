@@ -10,6 +10,7 @@ Results are projections, not guarantees, and not investment advice.
 | Feature | What it does | Endpoints |
 |---|---|---|
 | 📄 E*TRADE statement reader | Extracts transfer analytics from PDFs, excludes personal identifiers and retains only allowlisted transfer fields in session memory | `GET/DELETE /api/etrade/statement`, `POST /api/etrade/statement/upload` |
+| 📄 Fidelity Agent | Fidelity-branded PDF reader with view-only, explicitly labeled portfolio summary values and privacy controls; uses an isolated session store | `GET/DELETE /api/fidelity/statement`, `POST /api/fidelity/statement/upload` |
 | 🎲 Simulation | Monte Carlo projection of current and model portfolios; probability of success, percentile bands, histograms | `POST /api/simulations` |
 | ⚖️ Rebalance | Drift vs the model portfolio, proposed sells/buys funded by sells, success before/after | `POST /api/rebalance/proposal`, `GET /api/rebalance/settings` |
 | 🧾 Orders | Pending order blotter, CSV/JSON export | `POST /api/orders/generate`, `GET/DELETE /api/orders`, `GET /api/orders/export` |
@@ -91,15 +92,27 @@ Interactive API docs: `http://localhost:8000/docs` (port 8001 when `BACKEND_PORT
 - The PDF and unredacted extracted text are processed transiently in memory and never written to disk or a database.
 - The response preview is generated from allowlisted transfer dates, statuses, and amounts; the original filename,
   full statement text, account labels, names, SSNs, passwords, and addresses are not retained.
-- Only the allowlisted analytics are retained in process memory per browser session until cleared or backend restart.
+- Only allowlisted analytics, or a sanitized structure preview for an unrecognized statement, are retained in process
+  memory per browser session until cleared or backend restart.
 - The session key is not authentication; do not expose financial statements through an untrusted deployment.
 - Transfer activity parsing reports transaction count, listed amount, completed amount and scheduled amount. It does
   not infer a portfolio balance, holdings or investment performance. Analytics are view-only; no brokerage actions
   are submitted.
 - Defense-in-depth text redaction recognizes common labeled identity, SSN, credential and address fields, but the
   displayed preview is allowlist-generated rather than relying on pattern redaction to identify every personal value.
-- Scanned/image-only and password-protected PDFs are not supported. Only transfer-activity rows are structured; other
-  statement types remain text-only and do not provide balance, holdings or performance analytics.
+- Scanned/image-only and password-protected PDFs are not supported. Transfer activity is parsed as listed cash flows.
+- Fidelity additionally extracts the overview's portfolio value, change from last period, and total including other
+  holdings when the three labels precede exactly three decimal amounts in the first-page summary block. From its
+  Portfolio Summary section it also extracts total income for this period/year-to-date and aggregate Top Holdings
+  value/portfolio percentage. Labeled per-account balance, activity, income, and aggregate Top Holdings metrics are
+  also retained without account names/numbers or individual holding descriptions. Holdings rows retain only their
+  numeric values (beginning/ending market value, quantity, unit price, cost basis, unrealized gain/loss, and EAI/EY).
+  The Activity section displays settlement date, security, description, quantity, price, cost basis, transaction
+  cost, and amount from recognized transaction tables; requested security fields are retained with those rows.
+  It does not infer investment returns; other layouts receive a sanitized structure preview.
+  Unrecognized Fidelity previews may include safe parser diagnostics (label count, boundary presence, and amount count),
+  never extracted financial values.
+  Fidelity uses separate endpoints and an isolated in-memory session store.
 
 ## Configuration
 | File / variable | Purpose |

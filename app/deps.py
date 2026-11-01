@@ -32,6 +32,11 @@ def get_etrade_statement_store() -> InMemoryEtradeStatementStore:
 
 
 @lru_cache
+def get_fidelity_statement_store() -> InMemoryEtradeStatementStore:
+    return InMemoryEtradeStatementStore()
+
+
+@lru_cache
 def get_order_store() -> OrderStore:
     return InMemoryOrderStore()
 

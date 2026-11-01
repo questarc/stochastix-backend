@@ -51,6 +51,57 @@ class AccountPortfolio(BaseModel):
     market_value: float
 
 
+class FidelityPortfolioSummary(BaseModel):
+    beginning_value: float | None = None
+    ending_value: float | None = None
+    reported_change: float | None = None
+    total_including_other_holdings: float | None = None
+    statement_period: str | None = None
+    income_this_period: float | None = None
+    income_year_to_date: float | None = None
+    top_holdings_value: float | None = None
+    top_holdings_percent: float | None = None
+
+
+class FidelityAccountSummary(BaseModel):
+    account_value: float | None = None
+    change_in_account_value: float | None = None
+    beginning_value: float | None = None
+    additions: float | None = None
+    subtractions: float | None = None
+    transaction_costs: float | None = None
+    investment_change: float | None = None
+    ending_value: float | None = None
+    accrued_interest: float | None = None
+    income_this_period: float | None = None
+    income_year_to_date: float | None = None
+    top_holdings_value: float | None = None
+    top_holdings_percent: float | None = None
+
+
+class FidelityHolding(BaseModel):
+    beginning_market_value: float | None = None
+    quantity: float | None = None
+    price_per_unit: float | None = None
+    ending_market_value: float | None = None
+    cost_basis: float | None = None
+    unrealized_gain_loss: float | None = None
+    estimated_annual_income: float | None = None
+    estimated_yield_percent: float | None = None
+
+
+class FidelityActivityTransaction(BaseModel):
+    settlement_date: str
+    security_name: str | None = None
+    symbol_cusip: str | None = None
+    description: str | None = None
+    quantity: float | None = None
+    price: float | None = None
+    total_cost_basis: float | None = None
+    transaction_cost: float | None = None
+    amount: float | None = None
+
+
 class EtradeStatement(BaseModel):
     filename: str
     page_count: int
@@ -60,6 +111,10 @@ class EtradeStatement(BaseModel):
     document_type: str
     transactions: list["EtradeTransaction"] = Field(default_factory=list)
     summary: "EtradeTransferSummary | None" = None
+    portfolio_summary: "FidelityPortfolioSummary | None" = None
+    account_summaries: list["FidelityAccountSummary"] = Field(default_factory=list)
+    holdings: list["FidelityHolding"] = Field(default_factory=list)
+    activity_transactions: list["FidelityActivityTransaction"] = Field(default_factory=list)
 
 
 class EtradeTransaction(BaseModel):
