@@ -16,7 +16,7 @@ from ..engine import CapitalMarketAssumptions
 from ..rebalance import RebalanceSettings, propose_rebalance
 from ..services import load_account_portfolio, run_portfolio_simulation
 from ..voice.engine import SpeechEngine
-from .narration import build_scenes
+from .narration import build_indicator_scenes, build_scenes
 from .render import render_video
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ PLAN_KEYS = ("retirement_age", "plan_end_age", "annual_contribution", "annual_wi
 @dataclass
 class VideoClip:
     video_id: str
-    account_id: str
+    account_id: str | None
     client_name: str
     duration_seconds: float
     scenes: list[str]
@@ -52,39 +52,50 @@ class VideoGenAgent:
 
     def create(self, request: dict, on_progress: Callable[[float], None] | None = None) -> VideoClip:
         """``request`` uses SimulationRequest fields plus ``include_rebalance``."""
-        portfolio = load_account_portfolio(self.sources, request["account_id"], request.get("model_id"))
-        a = portfolio.account
-        cma = self.cma.with_distribution(request["distribution"]) if request.get("distribution") else self.cma
-        plan_in = {k: request.get(k) for k in PLAN_KEYS}
-        sim = dict(trials=min(int(request.get("trials") or 10_000), MAX_VIDEO_TRIALS), seed=request.get("seed", 42),
-                   sampling=request.get("sampling", "prng"), copula=request.get("copula", "gaussian"),
-                   copula_df=request.get("copula_df", 5))
-        run = lambda w: run_portfolio_simulation(portfolio, cma, w, **plan_in, **sim)  # noqa: E731
-        current, model = run(portfolio.current_weights), run(portfolio.model.weights)
-        proposal = after = None
-        if request.get("include_rebalance", True):
-            proposal = propose_rebalance(a.account_id, portfolio.positions, portfolio.model, self.rebalance_settings)
-            after = run(proposal.post_trade_weights).success_probability if proposal.trades else current.success_probability
-        plan = {k: (getattr(a, k) if plan_in[k] is None else plan_in[k]) for k in PLAN_KEYS}
-        scenes = build_scenes(portfolio, current, model, plan, proposal, after)
+        indicator_context = request.get("page_context")
+        account_id = request.get("account_id")
+        if indicator_context:
+            scenes = build_indicator_scenes(indicator_context)
+            client_name = indicator_context["title"]
+            advisor = "Stochastix AI"
+        else:
+            if not account_id:
+                raise ValueError("An account or supported page context is required.")
+            portfolio = load_account_portfolio(self.sources, account_id, request.get("model_id"))
+            a = portfolio.account
+            cma = self.cma.with_distribution(request["distribution"]) if request.get("distribution") else self.cma
+            plan_in = {k: request.get(k) for k in PLAN_KEYS}
+            sim = dict(trials=min(int(request.get("trials") or 10_000), MAX_VIDEO_TRIALS), seed=request.get("seed", 42),
+                       sampling=request.get("sampling", "prng"), copula=request.get("copula", "gaussian"),
+                       copula_df=request.get("copula_df", 5))
+            run = lambda w: run_portfolio_simulation(portfolio, cma, w, **plan_in, **sim)  # noqa: E731
+            current, model = run(portfolio.current_weights), run(portfolio.model.weights)
+            proposal = after = None
+            if request.get("include_rebalance", True):
+                proposal = propose_rebalance(a.account_id, portfolio.positions, portfolio.model, self.rebalance_settings)
+                after = run(proposal.post_trade_weights).success_probability if proposal.trades else current.success_probability
+            plan = {k: (getattr(a, k) if plan_in[k] is None else plan_in[k]) for k in PLAN_KEYS}
+            scenes = build_scenes(portfolio, current, model, plan, proposal, after)
+            client_name, advisor = a.client_name, a.advisor
         if on_progress:
             on_progress(0.05)
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "video.mp4"
             report = (lambda p: on_progress(0.05 + 0.95 * p)) if on_progress else None
-            duration = self.renderer(scenes, self.engine, a.advisor, a.client_name, out, on_progress=report)
+            duration = self.renderer(scenes, self.engine, advisor, client_name, out, on_progress=report)
             data = out.read_bytes()
         now = datetime.now(timezone.utc)
-        clip = VideoClip(uuid.uuid4().hex, a.account_id, a.client_name, duration, [s.kind for s in scenes],
-                         now.isoformat(), f"{a.account_id}_plan_update_{now.strftime('%Y%m%d_%H%M%S')}.mp4", data)
-        logger.info("Video account=%s seconds=%.1f bytes=%d seed=%s", a.account_id, duration, len(data), sim["seed"])
+        file_prefix = f"{account_id}_plan_update" if account_id else "technical_indicators"
+        clip = VideoClip(uuid.uuid4().hex, account_id, client_name, duration, [s.kind for s in scenes],
+                         now.isoformat(), f"{file_prefix}_{now.strftime('%Y%m%d_%H%M%S')}.mp4", data)
+        logger.info("Video account=%s seconds=%.1f bytes=%d", account_id or "none", duration, len(data))
         return clip
 
 
 @dataclass
 class VideoJob:
     job_id: str
-    account_id: str
+    account_id: str | None
     status: str = "queued"          # queued | rendering | done | error
     progress: float = 0.0
     message: str = "Waiting to start…"
@@ -107,7 +118,7 @@ class VideoJobManager:
         self._lock = threading.Lock()
 
     def submit(self, request: dict) -> VideoJob:
-        job = VideoJob(uuid.uuid4().hex, request["account_id"])
+        job = VideoJob(uuid.uuid4().hex, request.get("account_id"))
         with self._lock:
             self._jobs[job.job_id] = job
             while len(self._jobs) > self._max * 2:

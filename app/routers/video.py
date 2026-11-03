@@ -14,7 +14,10 @@ router = APIRouter(tags=["video"])
 @router.post("/video", response_model=VideoJobInfo, status_code=202)
 def start_video(req: VideoRequest, jobs: VideoJobManager = Depends(get_video_jobs),
                 sources: dict = Depends(get_sources)):
-    find_source_for_account(sources, req.account_id)  # 404 before queuing
+    if req.account_id:
+        find_source_for_account(sources, req.account_id)  # 404 before queuing
+    elif req.page_context is None:
+        raise HTTPException(status_code=422, detail="An account or supported page context is required.")
     return jobs.submit(req.model_dump(exclude={"sample_paths"})).to_dict()
 
 

@@ -316,14 +316,40 @@ class VoiceRequest(BaseModel):
     account_id: str | None = None
 
 
+class TechnicalIndicatorVideoPoint(BaseModel):
+    date: str = Field(max_length=40)
+    close: float = Field(gt=0)
+    rsi: float = Field(ge=0, le=100)
+    macd: float
+    macd_signal: float
+    bollinger_upper: float = Field(gt=0)
+    bollinger_lower: float = Field(gt=0)
+
+
+class TechnicalIndicatorVideoContext(BaseModel):
+    kind: Literal["technical_indicators"]
+    title: str = Field(default="Technical Indicators", max_length=80)
+    data_label: str = Field(default="Selected price series", max_length=80)
+    latest_date: str = Field(max_length=40)
+    close: float = Field(gt=0)
+    rsi: float = Field(ge=0, le=100)
+    macd: float
+    macd_signal: float
+    bollinger_upper: float = Field(gt=0)
+    bollinger_lower: float = Field(gt=0)
+    series: list[TechnicalIndicatorVideoPoint] = Field(min_length=1, max_length=90)
+
+
 class VideoRequest(SimulationRequest):
+    account_id: str | None = None
     include_rebalance: bool = True
     trials: int = Field(10_000, gt=0, le=25_000)
+    page_context: TechnicalIndicatorVideoContext | None = None
 
 
 class VideoInfo(BaseModel):
     video_id: str
-    account_id: str
+    account_id: str | None
     client_name: str
     duration_seconds: float
     scenes: list[str]
@@ -335,7 +361,7 @@ class VideoInfo(BaseModel):
 
 class VideoJobInfo(BaseModel):
     job_id: str
-    account_id: str
+    account_id: str | None
     status: Literal["queued", "rendering", "done", "error"]
     progress: float
     message: str

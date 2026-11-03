@@ -131,6 +131,47 @@ def test_video_endpoints(video_client):
     assert video_client.get("/api/video/nope").status_code == 404
 
 
+def test_technical_indicator_video_uses_page_context_without_simulation(video_client, setup):
+    points = [{
+        "date": f"2026-{month:02d}-01",
+        "close": 100 + month,
+        "rsi": 55 + month / 10,
+        "macd": 1.2 + month / 100,
+        "macd_signal": 1.0 + month / 100,
+        "bollinger_upper": 110 + month,
+        "bollinger_lower": 90 + month,
+    } for month in range(1, 13)]
+    response = video_client.post("/api/video", json={
+        "page_context": {
+            "kind": "technical_indicators",
+            "title": "Technical Indicators",
+            "data_label": "sample-price-history.csv",
+            "latest_date": points[-1]["date"],
+            "close": points[-1]["close"],
+            "rsi": points[-1]["rsi"],
+            "macd": points[-1]["macd"],
+            "macd_signal": points[-1]["macd_signal"],
+            "bollinger_upper": points[-1]["bollinger_upper"],
+            "bollinger_lower": points[-1]["bollinger_lower"],
+            "series": points,
+        },
+    })
+    assert response.status_code == 202
+    job_id = response.json()["job_id"]
+    for _ in range(100):
+        body = video_client.get(f"/api/video/jobs/{job_id}").json()
+        if body["status"] in ("done", "error"):
+            break
+        time.sleep(0.05)
+    assert body["status"] == "done"
+    assert body["account_id"] is None
+    assert body["video"]["client_name"] == "Technical Indicators"
+    assert body["video"]["account_id"] is None
+    assert body["video"]["scenes"] == [
+        "indicator_title", "indicator_chart", "indicator_chart", "indicator_chart", "indicator_closing",
+    ]
+
+
 def test_chat_starts_video_job(client, setup):
     from langchain_core.messages import AIMessage
     from tests.test_chat import _cache, _call

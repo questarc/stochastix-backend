@@ -86,3 +86,61 @@ def build_scenes(portfolio, current, model, plan: dict, proposal=None, success_a
         f"I'd be glad to walk through this with you at your convenience. Just reply with any questions. "
         f"{DISCLAIMER}"), {"advisor": a.advisor, "client": a.client_name}))
     return scenes
+
+
+def build_indicator_scenes(context: dict, today: date | None = None) -> list[Scene]:
+    """Create a short explainer from the indicator values currently shown on the page."""
+    rsi, macd, signal = context["rsi"], context["macd"], context["macd_signal"]
+    close, upper, lower = context["close"], context["bollinger_upper"], context["bollinger_lower"]
+    rsi_reading = "above 70, commonly described as overbought" if rsi > 70 else (
+        "below 30, commonly described as oversold" if rsi < 30 else "between the 30 and 70 reference levels"
+    )
+    macd_reading = "above" if macd >= signal else "below"
+    band_reading = "above the upper band" if close > upper else (
+        "below the lower band" if close < lower else "within the bands"
+    )
+    today = today or date.today()
+    series = context["series"]
+    return [
+        Scene(
+            "indicator_title",
+            "Technical indicator update",
+            f"This technical indicator update uses {context['data_label']} through {context['latest_date']}. "
+            f"The latest closing price is {money(close)}. These readings describe historical price action, "
+            "not a forecast.",
+            {"title": context["title"], "date": today.strftime("%B %d, %Y").replace(" 0", " "),
+             "data_label": context["data_label"], "facts": [
+                 ("Latest close", money(close)), ("RSI (14)", f"{rsi:.1f}"),
+                 ("MACD", f"{macd:.2f}"), ("Latest date", context["latest_date"]),
+             ]},
+        ),
+        Scene(
+            "indicator_chart",
+            "Relative Strength Index",
+            f"The 14 period RSI is {rsi:.1f}, {rsi_reading}. The chart shows its recent movement "
+            "against the 30 and 70 reference levels.",
+            {"series": series, "chart": "rsi"},
+        ),
+        Scene(
+            "indicator_chart",
+            "Moving Average Convergence Divergence",
+            f"MACD is {macd:.2f}, {macd_reading} its signal line at {signal:.2f}. "
+            "The histogram shows the difference between the two lines; this describes momentum changes, "
+            "not a prediction of future direction.",
+            {"series": series, "chart": "macd"},
+        ),
+        Scene(
+            "indicator_chart",
+            "Bollinger Bands",
+            f"The latest close is {money(close)}, {band_reading}. The 20 period bands are "
+            f"{money(lower)} to {money(upper)} and widen or narrow with recent price volatility.",
+            {"series": series, "chart": "bollinger"},
+        ),
+        Scene(
+            "indicator_closing",
+            "Historical indicators, not forecasts",
+            "RSI, MACD, and Bollinger Bands summarize past prices in different ways. "
+            f"They are not trading instructions or guarantees. {DISCLAIMER}",
+            {"data_label": context["data_label"]},
+        ),
+    ]

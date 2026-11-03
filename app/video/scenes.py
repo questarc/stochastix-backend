@@ -27,7 +27,26 @@ def draw_scene(img: Image.Image, scene: Scene, t: float, cache: dict) -> None:
     x0, y0, x1, y1 = CONTENT
     cw, ch = x1 - x0, y1 - y0
     data = scene.data
-    if scene.kind == "title":
+    if scene.kind == "indicator_title":
+        d.text((x0, y0 + 30), data["title"], font=font(48, True), fill=WHITE)
+        d.text((x0, y0 + 100), f"{data['data_label']}  ·  {data['date']}", font=font(22), fill=ACCENT)
+        facts = data["facts"]
+        gap, cardw = 22, (cw - 44) // len(facts)
+        for i, (label, value) in enumerate(facts):
+            cx = x0 + i * (cardw + gap)
+            panel(d, (cx, y0 + 190, cx + cardw, y0 + 350))
+            d.text((cx + 18, y0 + 215), label, font=font(18), fill=MUTED)
+            d.text((cx + 18, y0 + 265), value, font=font(30, True), fill=WHITE)
+    elif scene.kind == "indicator_chart":
+        key = f"indicator_{data['chart']}"
+        if key not in cache:
+            cache[key] = charts.indicator_chart(data["series"], data["chart"], cw, ch)
+        _reveal(img, cache[key], (x0, y0), t)
+    elif scene.kind == "indicator_closing":
+        d.text((x0, y0 + 30), "Historical indicators, not forecasts", font=font(44, True), fill=WHITE)
+        panel(d, (x0, y0 + 120, x1, y0 + 370), accent=False)
+        wrap_text(d, (x0 + 28, y0 + 150), scene.narration, 23, MUTED, 80, spacing=14)
+    elif scene.kind == "title":
         k = ease(t / INTRO)
         d.text((x0, y0 + 40 - 20 * (1 - k)), data["client"], font=font(60, True), fill=WHITE)
         d.text((x0, y0 + 120), f"Retirement plan update  ·  {data['date']}", font=font(26), fill=ACCENT)

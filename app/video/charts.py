@@ -100,3 +100,43 @@ def outcomes_chart(result, w: int, h: int) -> Image.Image:
         right.set_xticks([])
         right.set_yticks([])
     return _to_image(fig)
+
+
+def indicator_chart(points: list[dict], kind: str, w: int, h: int) -> Image.Image:
+    fig, ax = _figure(w, h)
+    dates = [point["date"] for point in points]
+    if kind == "rsi":
+        ax.plot(dates, [point["rsi"] for point in points], color=LIGHT, linewidth=2.8, label="RSI (14)")
+        ax.axhline(70, color="#fbbf24", linestyle="--", linewidth=1.5, label="Overbought reference")
+        ax.axhline(30, color="#38bdf8", linestyle="--", linewidth=1.5, label="Oversold reference")
+        ax.set_ylim(0, 100)
+        ax.set_ylabel("RSI", color=TEXT)
+    elif kind == "macd":
+        macd = [point["macd"] for point in points]
+        signal = [point["macd_signal"] for point in points]
+        x = np.arange(len(points))
+        ax.bar(x, np.asarray(macd) - np.asarray(signal), color="#64748b", alpha=0.65, label="Histogram")
+        ax.plot(x, macd, color=LIGHT, linewidth=2.5, label="MACD")
+        ax.plot(x, signal, color="#fbbf24", linewidth=2, label="Signal")
+        ax.set_xticks(np.linspace(0, len(points) - 1, min(6, len(points)), dtype=int),
+                      [dates[i] for i in np.linspace(0, len(points) - 1, min(6, len(points)), dtype=int)])
+        ax.set_ylabel("MACD", color=TEXT)
+    else:
+        close = [point["close"] for point in points]
+        ax.fill_between(dates, [point["bollinger_lower"] for point in points],
+                        [point["bollinger_upper"] for point in points], color=BLUE, alpha=0.16,
+                        label="Bollinger Bands")
+        ax.plot(dates, close, color=LIGHT, linewidth=2.8, label="Close")
+        ax.plot(dates, [point["bollinger_upper"] for point in points], color=BLUE, linewidth=1.2)
+        ax.plot(dates, [point["bollinger_lower"] for point in points], color=BLUE, linewidth=1.2)
+        ax.yaxis.set_major_formatter(FuncFormatter(_money_axis))
+        ax.set_ylabel("Price", color=TEXT)
+    if kind != "macd":
+        step = max(1, len(points) // 6)
+        ticks = list(range(0, len(points), step))
+        if ticks[-1] != len(points) - 1:
+            ticks.append(len(points) - 1)
+        ax.set_xticks(ticks, [dates[i] for i in ticks])
+    ax.tick_params(axis="x", labelrotation=0)
+    ax.legend(loc="upper left", frameon=False, labelcolor=TEXT, fontsize=11)
+    return _to_image(fig)
