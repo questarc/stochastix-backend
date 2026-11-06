@@ -1,4 +1,4 @@
-"""LLM provider settings and chat model construction (Ollama, OpenAI, Anthropic)."""
+"""LLM provider settings and chat model construction."""
 from __future__ import annotations
 
 import importlib.util
@@ -124,4 +124,8 @@ def build_chat_model(settings: LLMSettings, provider_id: str, model: str | None 
         kwargs.update(base_url=base_url, client_kwargs={"timeout": settings.timeout_seconds})
     else:
         kwargs["timeout"] = settings.timeout_seconds
-    return init_chat_model(model_name, model_provider=provider_id, **kwargs)
+        if cfg.get("base_url"):
+            kwargs["base_url"] = cfg["base_url"]
+        if env:
+            kwargs["api_key"] = os.environ[env]
+    return init_chat_model(model_name, model_provider=cfg.get("model_provider", provider_id), **kwargs)

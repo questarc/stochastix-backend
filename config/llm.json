@@ -1,9 +1,18 @@
 {
-  "default_provider": "ollama",
+  "default_provider": "nvidia",
   "temperature": 0.1,
   "timeout_seconds": 120,
   "max_trials_per_tool_call": 25000,
   "providers": {
+    "nvidia": {
+      "label": "NVIDIA",
+      "default_model": "meta/llama-3.3-70b-instruct",
+      "models": ["meta/llama-3.3-70b-instruct"],
+      "api_key_env": "NVIDIA_API_KEY",
+      "model_provider": "openai",
+      "base_url": "https://integrate.api.nvidia.com/v1",
+      "package": "langchain_openai"
+    },
     "ollama": {
       "label": "Ollama (local)",
       "default_model": "qwen2.5:7b",

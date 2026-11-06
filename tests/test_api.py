@@ -104,10 +104,34 @@ def test_methodology(client):
 def test_llm_providers_never_return_keys(client, monkeypatch):
     monkeypatch.setattr("app.routers.llm.available_models", lambda s, p: s.providers[p].get("models", []))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-value")
+    monkeypatch.setenv("NVIDIA_API_KEY", "nvidia-test-value")
     body = client.get("/api/llm/providers").json()
-    assert body[0]["id"] == "ollama"
+    assert body[0]["id"] == "nvidia"
+    nvidia = next(p for p in body if p["id"] == "nvidia")
+    assert nvidia["api_key_set"] is True and "nvidia-test-value" not in str(body)
     anthropic = next(p for p in body if p["id"] == "anthropic")
     assert anthropic["api_key_set"] is True and "test-value" not in str(body)
+
+
+def test_nvidia_provider_uses_openai_compatible_endpoint(monkeypatch):
+    from app.llm import LLMSettings, build_chat_model
+
+    calls = {}
+
+    def fake_init_chat_model(model, **kwargs):
+        calls.update(model=model, **kwargs)
+        return object()
+
+    monkeypatch.setattr("langchain.chat_models.init_chat_model", fake_init_chat_model)
+    monkeypatch.setenv("NVIDIA_API_KEY", "nvidia-test-value")
+    settings = LLMSettings.load("config/llm.json")
+
+    build_chat_model(settings, "nvidia")
+
+    assert calls["model"] == "meta/llama-3.3-70b-instruct"
+    assert calls["model_provider"] == "openai"
+    assert calls["base_url"] == "https://integrate.api.nvidia.com/v1"
+    assert calls["api_key"] == "nvidia-test-value"
 
 
 def test_chat_config_error_returns_400(client):
