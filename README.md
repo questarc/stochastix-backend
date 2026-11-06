@@ -8,6 +8,12 @@ Import this repository as a separate Vercel project with the repository root as 
 
 Set `NVIDIA_API_KEY` in the Vercel project's Production environment variables for the configured NVIDIA LLM provider. Add any other provider credentials only if you intend to use those providers. Never commit API keys.
 
+### Enable large functions
+
+The Python function bundle is larger than Vercel's standard 500 MB limit because it includes scientific, voice, and video dependencies. In the Vercel project, open **Settings → Environment Variables** and add `VERCEL_SUPPORT_LARGE_FUNCTIONS` with value `1` for the environments you deploy (at least Production, and Preview if used). This opts an existing project into Vercel's Large Functions beta (up to 5 GB); then redeploy. Large Functions require Fluid Compute with Active CPU enabled.
+
+If the bundle still fails, set `VERCEL_ANALYZE_BUILD_OUTPUT=1` as an environment variable and redeploy to see which files contribute most to the function size.
+
 The frontend Vercel project proxies `/api/*` to this backend. Use the backend's `stochastix-backend.vercel.app` domain, or change the frontend rewrite destination to the domain assigned by Vercel.
 
 ## Vercel runtime considerations
